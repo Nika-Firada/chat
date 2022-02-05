@@ -8,6 +8,8 @@ const messengerFrom = document.querySelector('#message-form');
 const messengerInput = document.querySelector('#message-input');
 const typingIndicator = document.querySelector('#typing-indicator');
 
+let timeOutId = null;
+
 enterMessengerBtn.addEventListener('click', () => {
   if(!enterMessengerInput.value){
     alert('Please enter your name');
@@ -35,8 +37,25 @@ function initMessenger(newUserName){
     if(message.type === 'chatMessage'){
       appendMessage(message.data, message.id, webSocketClient);
     }
+    if(message.type === 'messageLikes'){
+      const messageDiv = document.querySelector(`[data-id="${message.id}"]`);
+      const likesSpan = messageDiv.querySelector('span');
+      likesSpan.innerText = `(likes: ${message.likeCount})`;
+
+
+    }
+    if(message.type === 'userTyping'){
+      if(timeOutId){
+        clearTimeout(timeOutId);
+      }
+      typingIndicator.innerText = `${message.data} is typing...`;
+      timeOutId = setTimeout(()=>{
+        typingIndicator.innerText = '';
+      }, 1000)
+    }
   });
 
+  //--eventlisteners
   messengerFrom.addEventListener('submit', e => {
     e.preventDefault();
     const messageData = { type: 'chatMessage', data: messengerInput.value};
@@ -44,21 +63,14 @@ function initMessenger(newUserName){
     messengerInput.value = '';
   });
 
-  ///
-  function typo(){
-    typingIndicator.innerHTML = '';
-  }
-  messengerInput.addEventListener('keyup', e =>{
-    const typingUser = {type: 'userTyping', data: newUserName};
-    webSocketClient.send(JSON.stringify(typingUser));
-    typingIndicator.innerHTML = `${newUserName} is typing...`; 
-    setTimeout(typo, 1000);
+  messengerInput.addEventListener('input', ()=>{
+    const messageData = { type: 'userTyping', data: newUserName};
+    webSocketClient.send(JSON.stringify(messageData));
   });
-
 
 }
 
-
+/// functions
 
 function appendUser(userName){
   const userParagraph = document.createElement('p');
@@ -79,5 +91,11 @@ function appendMessage(message, id, webSocketClient) {
   div.innerHTML = message;
   div.setAttribute('data-id', id);
   div.appendChild(messageLikes);
+  //
+  div.addEventListener('click', (e)=>{
+    const messageData = {type:'messageLike', id: e.target.dataset.id}
+    webSocketClient.send(JSON.stringify(messageData));
+  })
+  //
   messagesContainer.appendChild(div);
 }
